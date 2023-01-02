@@ -24,7 +24,7 @@ macro_rules! tifloat {
 }
 
 bitflags! {
-    struct Flags: u8 {
+    pub struct Flags: u8 {
         /// If this bit is set, the number is undefined (used for initial sequence values)
         const UNDEFINED = 0x02;
         /// If both bits 2 and 3 are set and bit 1 is clear, the number is half of a complex variable.
@@ -34,6 +34,13 @@ bitflags! {
         /// If set, the number is negative.
         const NEGATIVE = 0x80;
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseFloatError {
+    InvalidFlags,
+    InvalidExponent,
+    InvalidMantissa,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -71,16 +78,39 @@ impl Float {
                 Flags::empty()
             },
             exponent,
-            mantissa: Mantissa::from(mantissa),
+            mantissa: Mantissa::from(mantissa).unwrap(),
         }
     }
 
-    pub fn repr(&self) -> Vec<u8> {
+    /// Given a Float, produces byte representation (flags at index zero).
+    pub fn repr(&self) -> [u8; 9] {
         let mut result = vec![self.flags.bits, self.exponent];
 
-        result.extend(self.mantissa.bits().to_be_bytes());
+        result.extend(&self.mantissa.bits().to_be_bytes()[1..=7]);
 
-        result
+        result.try_into().unwrap()
+    }
+
+    /// Given the byte representation (flags at index zero), produces a Float.
+    pub fn from_repr(repr: [u8; 9]) -> Result<Self, ParseFloatError> {
+        let flags = Flags::from_bits(repr[0]).ok_or(ParseFloatError::InvalidFlags)?;
+        let exponent = repr[1];
+
+        if !(Float::EXPONENT_MIN..Float::EXPONENT_MAX).contains(&exponent) {
+            return Err(ParseFloatError::InvalidExponent);
+        }
+
+        let mut arr = [0u8; 8];
+        arr.copy_from_slice(dbg!(&repr[1..]));
+
+        let mantissa = Mantissa::from(u64::from_be_bytes(arr) & Mantissa::MASK)
+            .ok_or(ParseFloatError::InvalidMantissa)?;
+
+        Ok(Float {
+            flags,
+            exponent,
+            mantissa,
+        })
     }
 }
 
@@ -247,5 +277,15 @@ mod tests {
     #[test]
     fn try_mul_div() {
         // trust me it works (i hope)
+    }
+
+    #[test]
+    fn repr() {
+        let float = tifloat!(-0x55000000000000 * 10 ^ 5);
+
+        let repr = [0x80, 0x85, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+        assert_eq!(float.repr(), repr);
+        assert_eq!(Float::from_repr(repr).ok().unwrap(), float);
     }
 }

@@ -41,9 +41,9 @@ impl Mantissa {
 }
 
 impl Mantissa {
-    const MASK: u64 = 0x00FFFFFFFFFFFFFF;
+    pub const MASK: u64 = 0x00FFFFFFFFFFFFFF;
     /// The maximum value that the Mantissa can store, in base 10
-    const MAX_10: u64 = 99999999999999;
+    pub const MAX_10: u64 = 99999999999999;
 
     pub fn tens_complement(&self) -> Mantissa {
         let t1 = (!0) - self.data;
@@ -75,13 +75,17 @@ impl Mantissa {
         ((self.data >> (13 * 4)) & 0xFF) as u8
     }
 
-    pub fn from(bits: u64) -> Self {
-        Mantissa {
-            data: bits & Mantissa::MASK,
+    pub fn from(bits: u64) -> Option<Self> {
+        if 0 != (((((bits >> 1) & 0x0077777777777777) + 0x0033333333333333) & 0x0088888888888888)
+            | (bits & !Mantissa::MASK))
+        {
+            None
+        } else {
+            Some(Mantissa { data: bits })
         }
     }
 
-    pub fn to_dec(&self) -> u64 {
+    pub fn to_dec(self) -> u64 {
         let mut output = 0u64;
         for byte in self.data.to_be_bytes() {
             output = output * 100 + (byte - 6 * (byte >> 4)) as u64;
