@@ -130,7 +130,7 @@ impl Sub for Mantissa {
 
 impl Mantissa {
     /// Returns the unnormalized sum and the overflow flag.
-    pub(super) fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+    pub fn overflowing_add(self, rhs: Self) -> (Self, bool) {
         if rhs.is_zero() {
             return (self, false);
         }

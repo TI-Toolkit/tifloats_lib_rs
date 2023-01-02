@@ -74,6 +74,14 @@ impl Float {
             mantissa: Mantissa::from(mantissa),
         }
     }
+
+    pub fn repr(&self) -> Vec<u8> {
+        let mut result = vec![self.flags.bits, self.exponent];
+
+        result.extend(self.mantissa.bits().to_be_bytes());
+
+        result
+    }
 }
 
 impl TIFloat for Float {
