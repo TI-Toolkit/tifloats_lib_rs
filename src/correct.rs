@@ -2,7 +2,7 @@ mod mantissa;
 
 use std::cmp::Ordering;
 
-pub use mantissa::Mantissa;
+use mantissa::Mantissa;
 
 use bitflags::bitflags;
 
@@ -11,28 +11,20 @@ use crate::{FloatError, TIFloat};
 #[macro_export]
 macro_rules! tifloat {
     (-$mantissa:literal * 10 ^ $exponent:literal) => {{
-        let float = Float::from(
-            $crate::Flags::NEGATIVE,
-            0x80 + ($exponent),
-            $crate::Mantissa::from($mantissa),
-        );
+        let float = Float::from(true, 0x80 + ($exponent), $mantissa);
 
         float
     }};
 
     ($mantissa:literal * 10 ^ $exponent:literal) => {{
-        let float = Float::from(
-            $crate::Flags::empty(),
-            0x80 + ($exponent),
-            $crate::Mantissa::from($mantissa),
-        );
+        let float = Float::from(false, 0x80 + ($exponent), $mantissa);
 
         float
     }};
 }
 
 bitflags! {
-    pub struct Flags: u8 {
+    struct Flags: u8 {
         /// If this bit is set, the number is undefined (used for initial sequence values)
         const UNDEFINED = 0x02;
         /// If both bits 2 and 3 are set and bit 1 is clear, the number is half of a complex variable.
@@ -70,11 +62,16 @@ impl Float {
         }
     }
 
-    pub fn from(flags: Flags, exponent: u8, mantissa: Mantissa) -> Float {
+    /// Intended for use with the tifloat! macro
+    pub fn from(negative: bool, exponent: u8, mantissa: u64) -> Float {
         Float {
-            flags,
+            flags: if negative {
+                Flags::NEGATIVE
+            } else {
+                Flags::empty()
+            },
             exponent,
-            mantissa,
+            mantissa: Mantissa::from(mantissa),
         }
     }
 }

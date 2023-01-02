@@ -14,7 +14,7 @@ const DEC_TO_BCD: [u64; 100] = [
 ];
 
 #[derive(Copy, Clone, Debug)]
-pub struct Mantissa {
+pub(super) struct Mantissa {
     data: u64,
 }
 
