@@ -43,7 +43,7 @@ pub enum ParseFloatError {
     InvalidMantissa,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Float {
     flags: Flags,
