@@ -1,23 +1,24 @@
-mod mantissa;
+use std::{
+    cmp::Ordering,
+    ops::{Add, Div, Mul, Neg, Sub},
+};
 
-use std::cmp::Ordering;
-
-use mantissa::Mantissa;
+use crate::mantissa::Mantissa;
 
 use bitflags::bitflags;
 
-use crate::{FloatError, TIFloat};
+use crate::FloatError;
 
 #[macro_export]
 macro_rules! tifloat {
     (-$mantissa:literal * 10 ^ $exponent:literal) => {{
-        let float = Float::from(true, 0x80 + ($exponent), $mantissa);
+        let float = Float::new(true, 0x80 + ($exponent), $mantissa);
 
         float
     }};
 
     ($mantissa:literal * 10 ^ $exponent:literal) => {{
-        let float = Float::from(false, 0x80 + ($exponent), $mantissa);
+        let float = Float::new(false, 0x80 + ($exponent), $mantissa);
 
         float
     }};
@@ -70,7 +71,7 @@ impl Float {
     }
 
     /// Intended for use with the tifloat! macro
-    pub fn from(negative: bool, exponent: u8, mantissa: u64) -> Float {
+    pub fn new(negative: bool, exponent: u8, mantissa: u64) -> Float {
         Float {
             flags: if negative {
                 Flags::NEGATIVE
@@ -83,7 +84,7 @@ impl Float {
     }
 
     /// Given a Float, produces byte representation (flags at index zero).
-    pub fn repr(&self) -> [u8; 9] {
+    pub fn to_raw_bytes(&self) -> [u8; 9] {
         let mut result = vec![self.flags.bits, self.exponent];
 
         result.extend(&self.mantissa.bits().to_be_bytes()[1..=7]);
@@ -92,16 +93,16 @@ impl Float {
     }
 
     /// Given the byte representation (flags at index zero), produces a Float.
-    pub fn from_repr(repr: [u8; 9]) -> Result<Self, ParseFloatError> {
-        let flags = Flags::from_bits(repr[0]).ok_or(ParseFloatError::InvalidFlags)?;
-        let exponent = repr[1];
+    pub fn from_raw_bytes(bytes: [u8; 9]) -> Result<Self, ParseFloatError> {
+        let flags = Flags::from_bits(bytes[0]).ok_or(ParseFloatError::InvalidFlags)?;
+        let exponent = bytes[1];
 
         if !(Float::EXPONENT_MIN..Float::EXPONENT_MAX).contains(&exponent) {
             return Err(ParseFloatError::InvalidExponent);
         }
 
         let mut arr = [0u8; 8];
-        arr.copy_from_slice(dbg!(&repr[1..]));
+        arr.copy_from_slice(&bytes[1..]);
 
         let mantissa = Mantissa::from(u64::from_be_bytes(arr) & Mantissa::MASK)
             .ok_or(ParseFloatError::InvalidMantissa)?;
@@ -114,24 +115,47 @@ impl Float {
     }
 }
 
-impl TIFloat for Float {
-    fn is_negative(&self) -> bool {
+impl Float {
+    pub fn is_negative(&self) -> bool {
         self.flags.contains(Flags::NEGATIVE)
     }
 
-    fn negate(&mut self) {
-        self.flags ^= Flags::NEGATIVE;
-    }
-
-    fn mark_complex_half(&mut self) {
+    pub fn mark_complex_half(&mut self) {
         self.flags &= Flags::COMPLEX_HALF;
     }
+}
 
-    fn try_add(&self, other: &Self) -> Result<Self, FloatError> {
-        let (a, b) = if self.exponent < other.exponent {
-            (other, self)
+impl PartialOrd for Float {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.measure().partial_cmp(&other.measure())
+    }
+}
+
+impl Ord for Float {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl Neg for Float {
+    type Output = Float;
+
+    fn neg(self) -> Float {
+        Float {
+            flags: self.flags ^ Flags::NEGATIVE,
+            ..self
+        }
+    }
+}
+
+impl Add<Float> for Float {
+    type Output = Result<Float, FloatError>;
+
+    fn add(self, rhs: Float) -> Self::Output {
+        let (a, b) = if self.exponent < rhs.exponent {
+            (rhs, self)
         } else {
-            (self, other)
+            (self, rhs)
         };
 
         let b_mantissa = b.mantissa.shr(a.exponent - b.exponent);
@@ -182,15 +206,23 @@ impl TIFloat for Float {
             }
         }
     }
+}
 
-    fn try_sub(&self, other: &Self) -> Result<Self, FloatError> {
-        self.try_add(&other.negated())
+impl Sub<Float> for Float {
+    type Output = Result<Float, FloatError>;
+
+    fn sub(self, rhs: Float) -> Self::Output {
+        self + -rhs
     }
+}
 
-    fn try_mul(&self, other: &Self) -> Result<Self, FloatError> {
-        let mut exponent = self.exponent + other.exponent - Float::EXPONENT_NORM;
+impl Mul for Float {
+    type Output = Result<Float, FloatError>;
 
-        let (mut mantissa, shift) = self.mantissa.overflowing_mul(other.mantissa);
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut exponent = self.exponent + rhs.exponent - Float::EXPONENT_NORM;
+
+        let (mut mantissa, shift) = self.mantissa.overflowing_mul(rhs.mantissa);
 
         if shift {
             exponent += 1;
@@ -202,17 +234,21 @@ impl TIFloat for Float {
             Err(FloatError::Overflow)
         } else {
             Ok(Float {
-                flags: self.flags ^ (other.flags & Flags::NEGATIVE),
+                flags: self.flags ^ (rhs.flags & Flags::NEGATIVE),
                 exponent,
                 mantissa,
             })
         }
     }
+}
 
-    fn try_div(&self, other: &Self) -> Result<Self, FloatError> {
-        let exponent = self.exponent - other.exponent + Float::EXPONENT_NORM;
+impl Div for Float {
+    type Output = Result<Float, FloatError>;
 
-        let (mut mantissa, needs_norm) = self.mantissa.overflowing_div(other.mantissa);
+    fn div(self, rhs: Self) -> Self::Output {
+        let exponent = self.exponent - rhs.exponent + Float::EXPONENT_NORM;
+
+        let (mut mantissa, needs_norm) = self.mantissa.overflowing_div(rhs.mantissa);
 
         if needs_norm {
             mantissa = mantissa.shr(1);
@@ -230,18 +266,6 @@ impl TIFloat for Float {
     }
 }
 
-impl PartialOrd for Float {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.measure().partial_cmp(&other.measure())
-    }
-}
-
-impl Ord for Float {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,9 +273,9 @@ mod tests {
     #[test]
     fn try_add_sub() {
         let large = tifloat!(0x50000000000000 * 10 ^ 5);
-        let neg_large = large.negated();
+        let neg_large = -large;
         let small = tifloat!(0x50000000000000 * 10 ^ 4);
-        let neg_small = small.negated();
+        let neg_small = -small;
 
         let combinations = [
             (&large, &small, tifloat!(0x55000000000000 * 10 ^ 5)),
@@ -268,24 +292,19 @@ mod tests {
 
         for combination in combinations {
             assert_eq!(
-                combination.0.try_add(combination.1).ok().unwrap(),
+                (*combination.0 + *combination.1).ok().unwrap(),
                 combination.2
             );
         }
     }
 
     #[test]
-    fn try_mul_div() {
-        // trust me it works (i hope)
-    }
-
-    #[test]
-    fn repr() {
+    fn raw_bytes() {
         let float = tifloat!(-0x55000000000000 * 10 ^ 5);
 
         let repr = [0x80, 0x85, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 
-        assert_eq!(float.repr(), repr);
-        assert_eq!(Float::from_repr(repr).ok().unwrap(), float);
+        assert_eq!(float.to_raw_bytes(), repr);
+        assert_eq!(Float::from_raw_bytes(repr).ok().unwrap(), float);
     }
 }

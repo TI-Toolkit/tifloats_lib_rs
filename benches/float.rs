@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use tifloats::{tifloat, Float, TIFloat};
+use tifloats::{tifloat, Float};
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("add", |b| {
@@ -8,7 +8,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let neg_small = tifloat!(-0x10000000000000 * 10 ^ 4);
 
             assert_eq!(
-                large.try_add(&neg_small).ok().unwrap(),
+                (large + neg_small).ok().unwrap(),
                 tifloat!(0x90000000000000 * 10 ^ 4)
             );
         })
@@ -20,7 +20,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let neg_small = tifloat!(-0x10000000000000 * 10 ^ 4);
 
             assert_eq!(
-                large.try_mul(&neg_small).ok().unwrap(),
+                (large * neg_small).ok().unwrap(),
                 tifloat!(-0x10000000000000 * 10 ^ 9)
             );
         })
@@ -32,7 +32,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let neg_small = tifloat!(-0x10000000000000 * 10 ^ 4);
 
             assert_eq!(
-                large.try_div(&neg_small).ok().unwrap(),
+                (large / neg_small).ok().unwrap(),
                 tifloat!(0x10000000000000 * 10 ^ 1)
             );
         })
