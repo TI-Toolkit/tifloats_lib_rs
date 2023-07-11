@@ -12,13 +12,13 @@ use crate::FloatError;
 #[macro_export]
 macro_rules! tifloat {
     (-$mantissa:literal * 10 ^ $exponent:literal) => {{
-        let float = Float::new(true, 0x80 + ($exponent), $mantissa);
+        let float = Float::new_unchecked(true, $exponent, $mantissa);
 
         float
     }};
 
     ($mantissa:literal * 10 ^ $exponent:literal) => {{
-        let float = Float::new(false, 0x80 + ($exponent), $mantissa);
+        let float = Float::new_unchecked(false, $exponent, $mantissa);
 
         float
     }};
@@ -63,22 +63,19 @@ impl Float {
             | self.mantissa.bits() as u128
     }
 
-    fn negated(&self) -> Self {
-        Float {
-            flags: self.flags ^ Flags::NEGATIVE,
-            ..*self
-        }
+    /// Intended for use with the tifloat! macro
+    pub fn new(negative: bool, exponent: i8, mantissa: u64) -> Result<Self, FloatError> {
+        Self::new_unchecked(negative, exponent, mantissa).check()
     }
 
-    /// Intended for use with the tifloat! macro
-    pub fn new(negative: bool, exponent: u8, mantissa: u64) -> Float {
+    pub fn new_unchecked(negative: bool, exponent: i8, mantissa: u64) -> Self {
         Float {
             flags: if negative {
                 Flags::NEGATIVE
             } else {
                 Flags::empty()
             },
-            exponent,
+            exponent: Self::EXPONENT_NORM + (exponent as u8),
             mantissa: Mantissa::from(mantissa).unwrap(),
         }
     }
@@ -112,6 +109,15 @@ impl Float {
             exponent,
             mantissa,
         })
+    }
+
+    /// Checks if this float's exponent is within the allowed range
+    pub fn check(self) -> Result<Self, FloatError> {
+        if (Self::EXPONENT_MIN..=Self::EXPONENT_MAX).contains(&self.exponent) {
+            Ok(self)
+        } else {
+            Err(FloatError::Overflow)
+        }
     }
 }
 
