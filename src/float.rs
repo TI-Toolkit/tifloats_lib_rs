@@ -80,6 +80,25 @@ impl Float {
         }
     }
 
+    /// Convenience method to produce the appropriate packed-BCD mantissa from a
+    /// sequence of decimal digits, read from left to right (MSD = `digits[0]`).
+    pub fn mantissa_from(digits: &[u8]) -> u64 {
+        let digits = Vec::from(digits);
+
+        let dec = digits
+            .iter()
+            .take(14)
+            .enumerate()
+            .map(|(index, &value)| -> u64 { (1 << (4 * (13 - index as u64))) * value as u64 })
+            .sum::<u64>();
+
+        if digits.len() >= 15 && digits[14] >= 5 {
+            (Mantissa::from(dec).unwrap() + Mantissa::ULP).bits()
+        } else {
+            dec
+        }
+    }
+
     /// Given a Float, produces byte representation (flags at index zero).
     pub fn to_raw_bytes(&self) -> [u8; 9] {
         let mut result = vec![self.flags.bits, self.exponent];
@@ -312,5 +331,21 @@ mod tests {
 
         assert_eq!(float.to_raw_bytes(), repr);
         assert_eq!(Float::from_raw_bytes(repr).ok().unwrap(), float);
+    }
+
+    #[test]
+    fn mantissa_from() {
+        let cases = [
+            (vec![5], 0x50000000000000_u64),
+            (vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 0x12345678900000),
+            (
+                vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 9, 9],
+                0x12345678901240,
+            ),
+        ];
+
+        for (digits, expected) in cases {
+            assert_eq!(Float::mantissa_from(&digits), expected);
+        }
     }
 }
