@@ -75,7 +75,7 @@ impl Float {
             } else {
                 Flags::empty()
             },
-            exponent: Self::EXPONENT_NORM + (exponent as u8),
+            exponent: (exponent as u8).wrapping_add(Self::EXPONENT_NORM),
             mantissa: Mantissa::from(mantissa).unwrap(),
         }
     }
@@ -294,6 +294,14 @@ impl Div for Float {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn negative_exponents() {
+        assert_eq!(
+            tifloat!(0x10000000000000 * 10 ^ -2).exponent,
+            Float::EXPONENT_NORM - 2
+        );
+    }
 
     #[test]
     fn try_add_sub() {
