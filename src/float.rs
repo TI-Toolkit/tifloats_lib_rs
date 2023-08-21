@@ -25,6 +25,7 @@ macro_rules! tifloat {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct Flags: u8 {
         /// If this bit is set, the number is undefined (used for initial sequence values)
         const UNDEFINED = 0x02;
@@ -101,7 +102,7 @@ impl Float {
 
     /// Given a Float, produces byte representation (flags at index zero).
     pub fn to_raw_bytes(&self) -> [u8; 9] {
-        let mut result = vec![self.flags.bits, self.exponent];
+        let mut result = vec![self.flags.bits(), self.exponent];
 
         result.extend(&self.mantissa.bits().to_be_bytes()[1..=7]);
 
