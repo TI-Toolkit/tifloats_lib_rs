@@ -149,6 +149,10 @@ impl Float {
     pub fn mark_complex_half(&mut self) {
         self.flags &= Flags::COMPLEX_HALF;
     }
+
+    pub fn is_complex_half(&self) -> bool {
+        self.flags.contains(Flags::COMPLEX_HALF)
+    }
 }
 
 impl PartialOrd for Float {
