@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     ops::{Add, Div, Mul, Neg, Sub},
 };
-
+use std::fmt::{Debug, Formatter};
 use crate::mantissa::Mantissa;
 
 use bitflags::bitflags;
@@ -45,7 +45,7 @@ pub enum ParseFloatError {
     InvalidMantissa,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 #[repr(C)]
 pub struct Float {
     flags: Flags,
@@ -296,6 +296,16 @@ impl Div for Float {
     }
 }
 
+impl Debug for Float {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.flags.contains(Flags::NEGATIVE) {
+            f.write_str("-")?;
+        }
+
+        f.write_str(&format!("0x{} * 10 ^ {}", self.mantissa.to_dec().to_string(), (self.exponent as i8).wrapping_add(Float::EXPONENT_NORM as i8)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -360,5 +370,12 @@ mod tests {
         for (digits, expected) in cases {
             assert_eq!(Float::mantissa_from(&digits), expected);
         }
+    }
+
+    #[test]
+    fn debug() {
+        assert_eq!("0x50000000000000 * 10 ^ 5", format!("{:?}", tifloat!(0x50000000000000 * 10 ^ 5)));
+        assert_eq!("-0x50000000000000 * 10 ^ 5", format!("{:?}", tifloat!(-0x50000000000000 * 10 ^ 5)));
+        assert_eq!("0x50000000000000 * 10 ^ -5", format!("{:?}", tifloat!(0x50000000000000 * 10 ^ -5)));
     }
 }

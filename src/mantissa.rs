@@ -295,6 +295,49 @@ mod tests {
 
     #[test]
     fn div() {
-        // don't care enough, just trust me- it works
+        assert_eq!(
+            Mantissa {
+                data: 0x6000000000000000
+            }
+            .overflowing_div(Mantissa {
+                data: 0x7000000000000000
+            }),
+            (
+                Mantissa {
+                    data: 0x0085714285714286
+                },
+                false
+            )
+        );
+
+        assert_eq!(
+            Mantissa {
+                data: 0x1000000000000000
+            }
+            .overflowing_div(Mantissa {
+                data: 0x3000000000000000
+            }),
+            (
+                Mantissa {
+                    data: 0x0033333333333333
+                },
+                false
+            )
+        );
+
+        assert_eq!(
+            Mantissa {
+                data: 0x0355000000000000
+            }
+            .overflowing_div(Mantissa {
+                data: 0x1130000000000000
+            }),
+            (
+                Mantissa {
+                    data: 0x0031415929203540
+                },
+                false
+            )
+        );
     }
 }
