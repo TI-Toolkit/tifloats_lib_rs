@@ -132,6 +132,7 @@ impl Sub for Mantissa {
     }
 }
 
+/// # Core operations
 impl Mantissa {
     /// Returns the unnormalized sum and the overflow flag.
     pub fn overflowing_add(self, rhs: Self) -> (Self, bool) {
@@ -211,6 +212,18 @@ impl Mantissa {
         Mantissa {
             data: (self.data << ((distance * 4) as u64)) & Mantissa::MASK,
         }
+    }
+}
+
+impl Mantissa {
+    pub fn digits(&self) -> Vec<u8> {
+        let mut nibbles = Vec::with_capacity(16);
+        for i in (0..14).rev() {
+            let nibble = (self.data >> 4*i) & 0x0F;
+            nibbles.push(nibble as u8);
+        }
+
+        nibbles
     }
 }
 
@@ -339,5 +352,16 @@ mod tests {
                 false
             )
         );
+    }
+
+    #[test]
+    fn digits() {
+        assert_eq!(
+            Mantissa {
+                data: 0x0014285714285714
+            }
+            .digits(),
+            vec![1, 4, 2, 8, 5, 7, 1, 4, 2, 8, 5, 7, 1, 4]
+        )
     }
 }

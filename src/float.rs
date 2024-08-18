@@ -1,9 +1,9 @@
+use crate::mantissa::Mantissa;
+use std::fmt::{Debug, Formatter};
 use std::{
     cmp::Ordering,
     ops::{Add, Div, Mul, Neg, Sub},
 };
-use std::fmt::{Debug, Formatter};
-use crate::mantissa::Mantissa;
 
 use bitflags::bitflags;
 
@@ -152,6 +152,19 @@ impl Float {
 
     pub fn is_complex_half(&self) -> bool {
         self.flags.contains(Flags::COMPLEX_HALF)
+    }
+
+    pub fn digits(&self) -> Vec<u8> {
+        self.mantissa.digits()
+    }
+
+    pub fn significant_figures(&self) -> Vec<u8> {
+        let mut digits = self.mantissa.digits();
+
+        let new_length = digits.iter().rposition(|x| *x != 0).map_or(1, |i| i + 1);
+
+        digits.truncate(new_length);
+        digits
     }
 }
 
@@ -302,7 +315,11 @@ impl Debug for Float {
             f.write_str("-")?;
         }
 
-        f.write_str(&format!("0x{} * 10 ^ {}", self.mantissa.to_dec().to_string(), (self.exponent as i8).wrapping_add(Float::EXPONENT_NORM as i8)))
+        f.write_str(&format!(
+            "0x{} * 10 ^ {}",
+            self.mantissa.to_dec().to_string(),
+            (self.exponent as i8).wrapping_add(Float::EXPONENT_NORM as i8)
+        ))
     }
 }
 
@@ -374,8 +391,29 @@ mod tests {
 
     #[test]
     fn debug() {
-        assert_eq!("0x50000000000000 * 10 ^ 5", format!("{:?}", tifloat!(0x50000000000000 * 10 ^ 5)));
-        assert_eq!("-0x50000000000000 * 10 ^ 5", format!("{:?}", tifloat!(-0x50000000000000 * 10 ^ 5)));
-        assert_eq!("0x50000000000000 * 10 ^ -5", format!("{:?}", tifloat!(0x50000000000000 * 10 ^ -5)));
+        assert_eq!(
+            "0x50000000000000 * 10 ^ 5",
+            format!("{:?}", tifloat!(0x50000000000000 * 10 ^ 5))
+        );
+        assert_eq!(
+            "-0x50000000000000 * 10 ^ 5",
+            format!("{:?}", tifloat!(-0x50000000000000 * 10 ^ 5))
+        );
+        assert_eq!(
+            "0x50000000000000 * 10 ^ -5",
+            format!("{:?}", tifloat!(0x50000000000000 * 10 ^ -5))
+        );
+    }
+
+    #[test]
+    fn sig_figs() {
+        assert_eq!(
+            vec![1, 2, 3],
+            tifloat!(0x12300000000000 * 10 ^ -1).significant_figures()
+        );
+        assert_eq!(
+            vec![0],
+            tifloat!(0x00000000000000 * 10 ^ 0).significant_figures()
+        );
     }
 }
