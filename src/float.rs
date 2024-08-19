@@ -154,10 +154,15 @@ impl Float {
         self.flags.contains(Flags::COMPLEX_HALF)
     }
 
+    /// All 14 digits of the mantissa, in order from greatest to least place-value.
     pub fn digits(&self) -> Vec<u8> {
         self.mantissa.digits()
     }
 
+    /// Digits of the mantissa beginning with the largest nonzero digit and ending with the first digit
+    /// such that there are no nonzero digits with lesser place-values.
+    ///
+    /// Ex. `10` has significant digit `1`, but `11` has significant digits `1, 1`
     pub fn significant_figures(&self) -> Vec<u8> {
         let mut digits = self.mantissa.digits();
 
@@ -168,7 +173,7 @@ impl Float {
     }
 
     pub fn exponent(&self) -> i8 {
-        self.exponent as i8
+        (self.exponent as i8).wrapping_add(Float::EXPONENT_NORM as i8)
     }
 }
 
@@ -322,7 +327,7 @@ impl Debug for Float {
         f.write_str(&format!(
             "0x{} * 10 ^ {}",
             self.mantissa.to_dec().to_string(),
-            (self.exponent as i8).wrapping_add(Float::EXPONENT_NORM as i8)
+            self.exponent()
         ))
     }
 }
