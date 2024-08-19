@@ -166,6 +166,10 @@ impl Float {
         digits.truncate(new_length);
         digits
     }
+
+    pub fn exponent(&self) -> i8 {
+        self.exponent as i8
+    }
 }
 
 impl PartialOrd for Float {
