@@ -2,4 +2,5 @@
 pub enum FloatError {
     Overflow,
     DivideByZero,
+    InvalidMantissa,
 }

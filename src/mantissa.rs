@@ -85,6 +85,15 @@ impl Mantissa {
         }
     }
 
+    pub const fn from_unchecked(bits: u64) -> Self {
+        Mantissa { data: bits }
+    }
+
+    pub fn check(&self) -> bool {
+        0 == (((((self.data >> 1) & 0x0077777777777777) + 0x0033333333333333) & 0x0088888888888888)
+            | (self.data & !Mantissa::MASK))
+    }
+
     pub fn to_dec(self) -> u64 {
         let mut output = 0u64;
         for byte in self.data.to_be_bytes() {

@@ -69,7 +69,7 @@ impl Float {
         Self::new_unchecked(negative, exponent, mantissa).check()
     }
 
-    pub fn new_unchecked(negative: bool, exponent: i8, mantissa: u64) -> Self {
+    pub const fn new_unchecked(negative: bool, exponent: i8, mantissa: u64) -> Self {
         Float {
             flags: if negative {
                 Flags::NEGATIVE
@@ -77,7 +77,7 @@ impl Float {
                 Flags::empty()
             },
             exponent: (exponent as u8).wrapping_add(Self::EXPONENT_NORM),
-            mantissa: Mantissa::from(mantissa).unwrap(),
+            mantissa: Mantissa::from_unchecked(mantissa),
         }
     }
 
@@ -131,10 +131,14 @@ impl Float {
         })
     }
 
-    /// Checks if this float's exponent is within the allowed range
+    /// Check the validity of this Float.
     pub fn check(self) -> Result<Self, FloatError> {
         if (Self::EXPONENT_MIN..=Self::EXPONENT_MAX).contains(&self.exponent) {
-            Ok(self)
+            if self.mantissa.check() {
+                Ok(self)
+            } else {
+                Err(FloatError::InvalidMantissa)
+            }
         } else {
             Err(FloatError::Overflow)
         }
