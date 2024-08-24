@@ -1,3 +1,4 @@
+use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
 use tifloats::{tifloat, Float};
 
@@ -35,6 +36,14 @@ fn criterion_benchmark(c: &mut Criterion) {
                 (large / neg_small).ok().unwrap(),
                 tifloat!(0x10000000000000 * 10 ^ 1)
             );
+        })
+    });
+
+    c.bench_function("float_from_num", |b| {
+        b.iter(|| {
+            let n = black_box(tifloats::Float::from(12345));
+
+            assert_eq!(n, tifloat!(0x12345000000000 * 10 ^ 4));
         })
     });
 }

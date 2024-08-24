@@ -14,7 +14,7 @@ const DEC_TO_BCD: [u64; 100] = [
 ];
 
 #[derive(Copy, Clone, Debug)]
-pub(super) struct Mantissa {
+pub(crate) struct Mantissa {
     data: u64,
 }
 
@@ -114,6 +114,18 @@ impl Mantissa {
         }
 
         Mantissa { data: result }
+    }
+
+    pub fn from_dec_normalized(mut data: u64) -> (Self, u8) {
+        if data == 0 {
+            return (Mantissa::from_unchecked(data), 0)
+        }
+
+        let mut mantissa = Mantissa::from_dec(data);
+
+        let mut count = (mantissa.data.leading_zeros()/4) as u8 - 2;
+
+        (mantissa.shl(count), count)
     }
 }
 

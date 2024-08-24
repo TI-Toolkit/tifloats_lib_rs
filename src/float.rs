@@ -336,6 +336,19 @@ impl Debug for Float {
     }
 }
 
+impl From<u64> for Float {
+    fn from(value: u64) -> Self {
+        if value == 0 {
+            Float::new_unchecked(false, 0, 0)
+        } else {
+            let exp = value.ilog10() as i8;
+            let mantissa = Mantissa::from_dec_normalized(value);
+
+            Float::new_unchecked(false, exp, mantissa.0.bits())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
