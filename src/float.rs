@@ -143,6 +143,14 @@ impl Float {
             Err(FloatError::Overflow)
         }
     }
+    
+    pub fn shift(&self, delta: i8) -> Float {
+        Float {
+            flags: self.flags,
+            mantissa: self.mantissa,
+            exponent: (self.exponent as i8).wrapping_add(delta) as u8
+        }
+    }
 }
 
 impl Float {
